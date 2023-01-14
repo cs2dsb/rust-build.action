@@ -36,7 +36,7 @@ case ${RUSTTARGET} in
 
 "x86_64-unknown-linux-musl") ;;
 
-"x86_64-unknown-linux-gnu") 
+"x86_64-unknown-linux-gnu")
 error "x86_64-unknown-linux-gnu is not supported: please use x86_64-unknown-linux-musl for a statically linked c library"
 exit 1
 ;;
@@ -79,7 +79,16 @@ for BINARY in $BINARIES; do
   if [ -x "./build.sh" ]; then
     OUTPUT=$(./build.sh "${CMD_PATH}" "${OUTPUT_DIR}")
   else
-    OPENSSL_LIB_DIR=/usr/lib OPENSSL_INCLUDE_DIR=/usr/include/openssl PKG_CONFIG_PATH=/usr/lib/pkgconfig CARGO_TARGET_DIR="./target" cargo build --release --target "$RUSTTARGET" --bin "$BINARY" >&2
+    OPENSSL_LIB_DIR=/usr/lib \
+    OPENSSL_INCLUDE_DIR=/usr/include/openssl \
+    PKG_CONFIG_PATH=/usr/lib/pkgconfig \
+    CARGO_TARGET_DIR="./target" \
+    RUSTFLAGS='-C target-feature=+crt-static' \
+    banana
+    cargo build \
+      --release \
+      --target "$RUSTTARGET" \
+      --bin "$BINARY" >&2
     OUTPUT=$(find "target/${RUSTTARGET}/release/" -maxdepth 1 -type f -executable \( -name "${BINARY}" -o -name "${BINARY}.*" \) -print0 | xargs -0)
   fi
 
@@ -89,12 +98,12 @@ for BINARY in $BINARIES; do
     error "Unable to find output"
     exit 1
   fi
-  
+
   # MINIFY set to false by default
   MINIFY=${MINIFY:-"false"}
   if [ "$MINIFY" = "true" ]; then
     info "Minifying ${OUTPUT}..."
-    
+
     info "Stripping..."
     strip "${OUTPUT}" >&2 || info "Strip failed."
     info "File stripped successfully."
